@@ -5,5 +5,5 @@ Compile files
 
 Run
 
-  java Server <port>,
-  java Client <hostname> <port>
+  java Server portNo,
+  java Client hostname portNo
