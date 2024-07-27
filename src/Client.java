@@ -56,8 +56,9 @@ public class Client {
                     System.out.println("Message from Publisher: " + serverMessage);
                 }
             }
-        } catch (IOException e) {
-            System.out.println("An error occurred while reading messages from the server.");
+        } 
+        catch (IOException e) {
+            // System.out.println("An error occurred while reading messages from the server.");
         }
     }
 
