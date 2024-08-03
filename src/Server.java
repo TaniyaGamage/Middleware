@@ -36,6 +36,7 @@ public class Server {
         private BufferedWriter output;
         private String role;
 
+
         public ClientHandler(Socket socket) {
             this.socket = socket;
         }
