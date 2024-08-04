@@ -37,6 +37,7 @@ public class Server {
         private String role;
         private String topic;
 
+
         public ClientHandler(Socket socket) {
             this.socket = socket;
         }
