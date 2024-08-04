@@ -2,21 +2,25 @@ import java.io.*;
 import java.net.Socket;
 
 public class Client {
-    private Socket socket;
-    private String role;
-    private BufferedReader input;
+    private final Socket socket;
+    private final String role;
+    private final String topic;
+    private final BufferedReader consoleInput;
     private BufferedWriter output;
 
-    public Client(Socket socket, String role) {
+    public Client(Socket socket, String role, String topic) {
         this.socket = socket;
         this.role = role;
-        this.input = new BufferedReader(new InputStreamReader(System.in));
+        this.topic = topic;
+        this.consoleInput = new BufferedReader(new InputStreamReader(System.in));
         try {
             this.output = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             output.write(role + "\n");
+            output.write(topic + "\n");
             output.flush();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.err.println("Error initializing client: " + e.getMessage());
+            closeResources();
         }
     }
 
@@ -27,24 +31,21 @@ public class Client {
         try {
             String userInput;
             while (true) {
-                if ((userInput = input.readLine()) != null) {
+                if ((userInput = consoleInput.readLine()) != null) {
                     if (userInput.equalsIgnoreCase("terminate")) {
                         break;
                     }
-                    output.write(userInput + "\n");
-                    output.flush();
+                    if (role.equalsIgnoreCase("PUBLISHER")) {
+                        output.write(userInput + "\n");
+                        output.flush();
+                    }
                 }
             }
             System.out.println("Client terminated.");
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.err.println("Error during communication: " + e.getMessage());
         } finally {
-            try {
-                output.close();
-                socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            closeResources();
         }
     }
 
@@ -56,24 +57,37 @@ public class Client {
                     System.out.println("Message from Publisher: " + serverMessage);
                 }
             }
-        } 
-        catch (IOException e) {
-            // System.out.println("An error occurred while reading messages from the server.");
+        } catch (IOException e) {
+            System.err.println("Error reading messages from server: " + e.getMessage());
         }
     }
 
-    public static void main(String[] args) throws IOException {
-        if (args.length != 3) {
-            System.out.println("Usage: java Client <hostname> <port> <role>");
+    private void closeResources() {
+        try {
+            if (output != null) output.close();
+            if (socket != null && !socket.isClosed()) socket.close();
+        } catch (IOException e) {
+            System.err.println("Error closing resources: " + e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        if (args.length != 4) {
+            System.out.println("Usage: java Client <hostname> <port> <role> <topic>");
             return;
         }
 
         String hostName = args[0];
         int port = Integer.parseInt(args[1]);
         String role = args[2];
+        String topic = args[3];
 
-        Socket socket = new Socket(hostName, port);
-        Client client = new Client(socket, role);
-        client.startClient();
+        try {
+            Socket socket = new Socket(hostName, port);
+            Client client = new Client(socket, role, topic);
+            client.startClient();
+        } catch (IOException e) {
+            System.err.println("Error connecting to server: " + e.getMessage());
+        }
     }
 }

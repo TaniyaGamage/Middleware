@@ -5,7 +5,7 @@ import java.util.concurrent.*;
 
 public class Server {
     private ServerSocket serverSocket;
-    private final Set<BufferedWriter> subscribers = ConcurrentHashMap.newKeySet();
+    private final Map<String, Set<BufferedWriter>> topicSubscribers = new ConcurrentHashMap<>();
 
     public Server(ServerSocket serverSocket) {
         this.serverSocket = serverSocket;
@@ -35,6 +35,8 @@ public class Server {
         private BufferedReader input;
         private BufferedWriter output;
         private String role;
+        private String topic;
+
 
         public ClientHandler(Socket socket) {
             this.socket = socket;
@@ -46,11 +48,11 @@ public class Server {
                 input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 output = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
 
-                // Read role from the client
                 role = input.readLine();
+                topic = input.readLine();
                 if (role.equalsIgnoreCase("SUBSCRIBER")) {
-                    synchronized (subscribers) {
-                        subscribers.add(output);
+                    synchronized (topicSubscribers) {
+                        topicSubscribers.computeIfAbsent(topic, t -> ConcurrentHashMap.newKeySet()).add(output);
                     }
                 }
 
@@ -58,10 +60,13 @@ public class Server {
                 while ((clientInput = input.readLine()) != null) {
                     System.out.println("Received: " + clientInput);
                     if (role.equalsIgnoreCase("PUBLISHER")) {
-                        synchronized (subscribers) {
-                            for (BufferedWriter subscriber : subscribers) {
-                                subscriber.write(clientInput + "\n");
-                                subscriber.flush();
+                        synchronized (topicSubscribers) {
+                            Set<BufferedWriter> subscribers = topicSubscribers.get(topic);
+                            if (subscribers != null) {
+                                for (BufferedWriter subscriber : subscribers) {
+                                    subscriber.write(clientInput + "\n");
+                                    subscriber.flush();
+                                }
                             }
                         }
                     }
@@ -70,8 +75,14 @@ public class Server {
                 System.out.println("An error occurred while communicating with the client.");
             } finally {
                 if (role.equalsIgnoreCase("SUBSCRIBER")) {
-                    synchronized (subscribers) {
-                        subscribers.remove(output);
+                    synchronized (topicSubscribers) {
+                        Set<BufferedWriter> subscribers = topicSubscribers.get(topic);
+                        if (subscribers != null) {
+                            subscribers.remove(output);
+                            if (subscribers.isEmpty()) {
+                                topicSubscribers.remove(topic);
+                            }
+                        }
                     }
                 }
                 try {
